@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
-
+from torch.nn.utils.rnn import pad_packed_sequence
 
 class Transition(nn.Module):
     """
@@ -41,6 +41,11 @@ class Transition(nn.Module):
 
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
+
+    def init_z_0(self, trainable=True):
+        mu_0 = nn.Parameter(torch.zeros(self.z), requires_grad=trainable)
+        logvar_0 = nn.Parameter(torch.zeros(self.z), requires_grad=trainable)
+        return mu_0, logvar_0
 
     def forward(self, z_t_1):
         #h_t = ReLU(W_h z_t-1 + b_h)
@@ -122,6 +127,7 @@ class Combiner(nn.Module):
         self.lin1 = nn.Linear(z + h, hidden_state)
         self.lin2 = nn.Linear(hidden_state, z)
         self.lin3 = nn.Linear(hidden_state, z)
+        self.proj_h = nn.Linear(h, hidden_state)
 
     def init_z(self, trainable=True):
         mu = nn.Parameter(torch.zeros(self.z), requires_grad=trainable)
@@ -129,15 +135,18 @@ class Combiner(nn.Module):
         return mu, logvar
     
     def forward(self, z_t_1, h_right, h_left):
+        h_right_proj = self.proj_h(h_right)
+
         if h_left is None:
             #DKS
-            h_comb = (1/2) * (torch.tanh(self.lin1(torch.cat([z_t_1, h_right], dim=-1))) + h_right) 
+            h_comb = 0.5 * (torch.tanh(self.lin1(torch.cat([z_t_1, h_right], dim=-1))) + h_right_proj) 
         else:
             #ST-LR
-            h_comb = (1/3) * (torch.tanh(self.lin1(torch.cat([z_t_1, h_left, h_right], dim=-1))) + h_left + h_right)
+            h_left_proj = self.proj_h(h_left)
+            h_comb = (1/3) * (torch.tanh(self.lin1(torch.cat([z_t_1, h_left, h_right], dim=-1))) + h_left_proj + h_right_proj)
 
         mu_t = self.lin2(h_comb)
-        sig_t = F.softplus(self.lin3(h_comb))
+        sig_t = F.softplus(self.lin3(h_comb)) 
         logvar_t = torch.log(sig_t)
 
         return mu_t, logvar_t
@@ -148,22 +157,67 @@ class RNN(nn.Module):
     Lit la séquence à l'envers pour approximer h_t en utilisant x_{t:T}
 
     """
-    def __init__(self, x_dim, rnn_dim, n_layer=1, dropout=0.0, rnn_type='rnn'):
+    def __init__(self, input_dim, rnn_dim, n_layer=1, dropout=0.0, rnn_type='gru', reverse_input=True, bd=False):
         super().__init__()
-        self.x_dim = x_dim
+        self.input_dim = input_dim
         self.rnn_dim = rnn_dim
         self.n_layer = n_layer
         self.dropout = dropout
-        
-        if rnn_type == 'rnn':
-            self.rnn = nn.RNN(input_size=x_dim, hidden_size=rnn_dim, nonlinearity='relu', batch_first=True, num_layers=n_layer, dropout=dropout)
-        elif rnn_type == 'gru':
-            self.rnn = nn.GRU(input_size=x_dim, hidden_size=rnn_dim, batch_first=True, num_layers=n_layer, dropout=dropout)
-        elif rnn_type == 'lstm':
-            self.rnn = nn.LSTM(input_size=x_dim, hidden_size=rnn_dim, batch_first=True, num_layers=n_layer, dropout=dropout)
+        self.rnn_type = rnn_type
+        self.reverse_input = reverse_input
+        self.bd = bd  
 
-    def forward(self, x):
-        x_rev = torch.flip(x, dims=[1])
-        h_rev, _ = self.rnn(x_rev)
-        h_right = torch.flip(h_rev, dims=[1])
-        return h_right
+        if rnn_type == 'gru':
+            self.rnn = nn.GRU(
+                input_size=input_dim,
+                hidden_size=rnn_dim,
+                num_layers=n_layer,
+                dropout=dropout,
+                bidirectional=bd,
+                batch_first=True
+            )
+        elif rnn_type == 'lstm':
+            self.rnn = nn.LSTM(
+                input_size=input_dim,
+                hidden_size=rnn_dim,
+                num_layers=n_layer,
+                dropout=dropout,
+                bidirectional=bd,
+                batch_first=True
+            )
+        else:
+            self.rnn = nn.RNN(
+                input_size=input_dim,
+                hidden_size=rnn_dim,
+                nonlinearity='tanh',
+                num_layers=n_layer,
+                dropout=dropout,
+                bidirectional=bd,
+                batch_first=True
+            )
+
+    def forward(self, x_packed, seq_lengths):
+        """
+        x_packed : séquences packées avec `nn.utils.rnn.pack_padded_sequence`
+        seq_lengths : longueurs de chaque séquence dans le batch
+        """
+        h_rnn, _ = self.rnn(x_packed)
+        # on remet en séquences pleines (padding)
+        h_rnn, _ = pad_packed_sequence(h_rnn, batch_first=True)
+
+        # si on veut lire la séquence à l’envers :
+        if self.reverse_input:
+            h_rnn = self._reverse_sequences(h_rnn, seq_lengths)
+
+        return h_rnn
+
+    @staticmethod
+    def _reverse_sequences(x, seq_lengths):
+        """
+        Inverse les séquences selon leurs vraies longueurs.
+        """
+        x_rev = torch.zeros_like(x)
+        for b in range(x.size(0)):
+            T = seq_lengths[b]
+            x_rev[b, :T] = torch.flip(x[b, :T], dims=[0])
+        return x_rev

@@ -28,12 +28,14 @@ class DMM(nn.Module):
         self.encoder = RNN(x_dim, rnn_dim, rnn_layers, dropout=0.0, rnn_type=rnn_type)
 
         self.mu_p_0, self.logvar_p_0 = self.transition.init_z_0(trainable=train_init)
-        self.z_q_0 = self.combiner.init_z_q_0(trainable=train_init)
+        self.z_q_0 = self.combiner.init_z(trainable=train_init)
+
 
     def reparam(self, mu, logvar):
         eps = torch.randn_like(mu)
         return mu + eps * torch.exp(0.5 * logvar)
-    
+
+
     def forward(self, x, x_rev, x_seq_lengths):
         device = x.device
         B, T = x.size(0), x.size(1)
@@ -52,7 +54,7 @@ class DMM(nn.Module):
         z_p_seq = torch.zeros(B, T, self.z, device=device)
 
         mu_p_0 = getattr(self, "mu_p_0", None)
-        logvar_p0 = getattr(self, "logvar_p0", None)
+        logvar_p0 = getattr(self, "logvar_p_0", None)
         if mu_p_0 is None: 
             mu_p_0 = torch.zeros(self.z, device=device)
             logvar_p0 = torch.zeros(self.z, device=device)
@@ -60,6 +62,8 @@ class DMM(nn.Module):
         logvar_p_t = logvar_p0.expand(B, self.z)
 
         z_prev = torch.zeros(B, self.z, device=device)
+
+        T = min(x.size(1), h_rnn.size(1))
 
         for t in range(T):
             if t == 0: 

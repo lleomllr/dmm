@@ -10,10 +10,12 @@ class PolyMusicDataLoader():
                  collate_fn=seq_collate_fn,
                  num_workers=1):
 
-        assert data_dir in ['jsb']
+        assert data_dir in ['nottingham']
         assert split in ['train', 'valid', 'test']
         if data_dir == 'jsb':
             self.dataset = poly.PolyDataset(poly.JSB_CHORALES, split)
+        elif data_dir == 'nottingham':
+            self.dataset = poly.PolyDataset(poly.NOTTINGHAM, split)
         self.data_dir = data_dir
         self.split = split
 

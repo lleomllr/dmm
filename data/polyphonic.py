@@ -32,41 +32,22 @@ NOTTINGHAM = dset("nottingham",
                   "nottingham.pkl")
 
 
-# this function processes the raw data; in particular it unsparsifies it
 def process_data(base_path, dataset, min_note=21, note_range=88):
+    """
+    Simplified: load local pickle dataset (converted from .mat)
+    """
     output = os.path.join(base_path, dataset.filename)
+    
     if os.path.exists(output):
-        try:
-            with open(output, "rb") as f:
-                return pickle.load(f)
-        except (ValueError, UnicodeDecodeError):
-            # Assume python env has changed.
-            # Recreate pickle file in this env's format.
-            os.remove(output)
+        print(f"Dataset trouvé localement : {output}")
+        with open(output, "rb") as f:
+            return pickle.load(f)
 
-    print("processing raw data - {} ...".format(dataset.name))
-    data = pickle.load(urlopen(dataset.url))
-    # added this line to see the difference between the raw and processed data
-    pickle.dump(data, open(os.path.join(base_path,
-                '-'.join(['raw', dataset.filename])), "wb"), pickle.HIGHEST_PROTOCOL)
-    processed_dataset = {}
-    for split, data_split in data.items():
-        processed_dataset[split] = {}
-        n_seqs = len(data_split)
-        processed_dataset[split]['sequence_lengths'] = torch.zeros(n_seqs, dtype=torch.long)
-        processed_dataset[split]['sequences'] = []
-        for seq in range(n_seqs):
-            seq_length = len(data_split[seq])
-            processed_dataset[split]['sequence_lengths'][seq] = seq_length
-            processed_sequence = torch.zeros((seq_length, note_range))
-            for t in range(seq_length):
-                note_slice = torch.tensor(list(data_split[seq][t])) - min_note
-                slice_length = len(note_slice)
-                if slice_length > 0:
-                    processed_sequence[t, note_slice] = torch.ones(slice_length)
-            processed_dataset[split]['sequences'].append(processed_sequence)
-    pickle.dump(processed_dataset, open(output, "wb"), pickle.HIGHEST_PROTOCOL)
-    print("dumped processed data to %s" % output)
+    raise FileNotFoundError(
+        f"Fichier {dataset.filename} introuvable dans {base_path}.\n"
+        f"Téléchargez ou convertissez d'abord les .mat avec convert_mat_to_pkl.py."
+    )
+
 
 
 # this logic will be initiated upon import
@@ -95,7 +76,11 @@ class PolyDataset(Dataset):
         self.dataset = dataset
         self.split = split
 
-        self.data = load_data(dataset)[split]
+        data = load_data(dataset)
+        if split not in data:
+            mapping = {"train": "traindata", "valid": "validdata", "test": "testdata"}
+            split = mapping.get(split, split)
+        self.data = data[split]
         self.seq_lengths = self.data['sequence_lengths']
         self.seq = self.data['sequences']
         self.n_seq = len(self.seq_lengths)
