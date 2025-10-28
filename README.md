@@ -1,6 +1,6 @@
 # Deep Markov Model (DMM)
 
-PyTorch re-implementation of **Structured Inference Networks for Nonlinear State Space Models** (Krishnan, Shalit & Sontag, AAAI 2017)[pdf](https://arxiv.org/pdf/1609.09869)
+PyTorch re-implementation of **Structured Inference Networks for Nonlinear State Space Models** (Krishnan, Shalit & Sontag, AAAI 2017) [pdf](https://arxiv.org/pdf/1609.09869)
 
 ---
 
