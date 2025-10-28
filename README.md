@@ -25,8 +25,7 @@ These hidden states evolve over time and generate the observations we can see.
 Defined by two key distributions:
 
 
-$z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)}$ \\
-$x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}$
+$z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)} \\ x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}$
 
 
 We only observe $\( x_{1:T} \)$, but we want to infer the hidden sequence $\( z_{1:T} \)$.  
@@ -53,8 +52,7 @@ to leverage **past and future context** for better inference.
 The Deep Markov Model is a nonlinear, neural version of the state-space model:
 
 
-$z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network}$ \\
-$x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}$
+$z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network} \\ x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}$
 
 
 It consists of:
