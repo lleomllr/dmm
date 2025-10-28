@@ -25,7 +25,8 @@ These hidden states evolve over time and generate the observations we can see.
 Defined by two key distributions:
 
 
-$\( z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)}\)$ \\ $\( x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}\)$
+$$z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)}$$
+$$x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}$$
 
 
 We only observe $\( x_{1:T} \)$, but we want to infer the hidden sequence $\( z_{1:T} \)$.  
