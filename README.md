@@ -24,12 +24,10 @@ These hidden states evolve over time and generate the observations we can see.
 
 Defined by two key distributions:
 
-$\[
-\begin{aligned}
-z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)} \\
-x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}
-\end{aligned}
-\]$
+
+$z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)}$ \\
+$x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}$
+
 
 We only observe $\( x_{1:T} \)$, but we want to infer the hidden sequence $\( z_{1:T} \)$.  
 Exact inference is intractable — hence the need for a **Structured Inference Network**.
@@ -41,9 +39,9 @@ Exact inference is intractable — hence the need for a **Structured Inference N
 Instead of approximating each latent variable independently as $\( q(z_t \mid x_t) \)$,  
 the SIN learns a **structured posterior** that accounts for temporal dependencies:
 
-$\[
-q(z_t \mid z_{t-1}, x_{1:T})
-\]$
+
+$q(z_t \mid z_{t-1}, x_{1:T})$
+
 
 It uses a **bidirectional RNN** that reads the sequence both forward and backward in time  
 to leverage **past and future context** for better inference.
@@ -54,12 +52,10 @@ to leverage **past and future context** for better inference.
 
 The Deep Markov Model is a nonlinear, neural version of the state-space model:
 
-$\[
-\begin{cases}
-z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network} \\
-x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}
-\end{cases}
-\]$
+
+$z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network}$ \\
+$x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}$
+
 
 It consists of:
 - a **Transition** network (evolves hidden state),
@@ -69,9 +65,8 @@ It consists of:
 
 The training objective maximizes the **Evidence Lower Bound (ELBO):**
 
-$\[
-\log p_\theta(x) \geq \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - KL(q_\phi(z|x) \| p_\theta(z))
-\]$
+
+$\log p_\theta(x) \geq \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - KL(q_\phi(z|x) \| p_\theta(z))$
 
 ---
 
@@ -84,9 +79,8 @@ $\[
 - `RNN`: encoder producing hidden summaries of observations  
 
 **Training objective:**  
-$\[
-\mathcal{L} = \text{NLL} + \beta \cdot KL
-\]$
+
+$\mathcal{L} = \text{NLL} + \beta \cdot KL$
 
 where NLL = negative log-likelihood, KL = regularization,  
 and β is an annealing factor for stability.
