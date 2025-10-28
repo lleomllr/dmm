@@ -141,3 +141,29 @@ class Combiner(nn.Module):
         logvar_t = torch.log(sig_t)
 
         return mu_t, logvar_t
+    
+
+class RNN(nn.Module):
+    """
+    Lit la séquence à l'envers pour approximer h_t en utilisant x_{t:T}
+
+    """
+    def __init__(self, x_dim, rnn_dim, n_layer=1, dropout=0.0, rnn_type='rnn'):
+        super().__init__()
+        self.x_dim = x_dim
+        self.rnn_dim = rnn_dim
+        self.n_layer = n_layer
+        self.dropout = dropout
+        
+        if rnn_type == 'rnn':
+            self.rnn = nn.RNN(input_size=x_dim, hidden_size=rnn_dim, nonlinearity='relu', batch_first=True, num_layers=n_layer, dropout=dropout)
+        elif rnn_type == 'gru':
+            self.rnn = nn.GRU(input_size=x_dim, hidden_size=rnn_dim, batch_first=True, num_layers=n_layer, dropout=dropout)
+        elif rnn_type == 'lstm':
+            self.rnn = nn.LSTM(input_size=x_dim, hidden_size=rnn_dim, batch_first=True, num_layers=n_layer, dropout=dropout)
+
+    def forward(self, x):
+        x_rev = torch.flip(x, dims=[1])
+        h_rev, _ = self.rnn(x_rev)
+        h_right = torch.flip(h_rev, dims=[1])
+        return h_right
