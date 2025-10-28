@@ -54,9 +54,12 @@ to leverage **past and future context** for better inference.
 
 The Deep Markov Model is a nonlinear, neural version of the state-space model:
 
-
-$z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network} \\ x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}$
-
+$$
+\begin{aligned}
+z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network} \\ 
+x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}
+\end{aligned}
+$$
 
 It consists of:
 - a **Transition** network (evolves hidden state),
