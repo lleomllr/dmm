@@ -1,6 +1,15 @@
 # Structured Inference Networks for Nonlinear State Space Models
 
-We aim to model a **sequence of observable events over time**, such as:
+> PyTorch implementation of **Structured Inference Networks for Nonlinear State Space Models**  
+> (Krishnan, Shalit & Sontag, AAAI 2017)[pdf](https://arxiv.org/pdf/1609.09869)
+
+Re-implementation of the **Deep Markov Model (DMM)** —  
+
+---
+
+## Theoric Overview
+
+Aim to model a **sequence of observable events over time**, such as:
 - the successive positions of a robot,  
 - the heartbeats of a patient,  
 - the notes in a piece of music.
@@ -12,71 +21,86 @@ Behind these visible observations \( x_t \) lie **internal states \( z_t \)**, w
 
 These hidden states evolve over time and generate the observations we can see.
 
+---
 
-## State Space Model
+### State Space Model (SSM)
 
-Defined by two equations:
+Defined by two key distributions:
 
-1. **State evolution:**
-   \[
-   z_t \sim p(z_t \mid z_{t-1})
-   \]
-   → describes how the world’s state evolves over time.
-
-2. **Observation generation:**
-   \[
-   x_t \sim p(x_t \mid z_t)
-   \]
-   → describes how each observation depends on the hidden state.
-
-
-## The inference problem
-
-We observe a sequence \( x_{1:T} = (x_1, \dots, x_T) \)  
-and we aim to **infer the hidden states** \( z_{1:T} = (z_1, \dots, z_T) \).
-
-In theory, we would like to compute:
 \[
-p(z_{1:T} \mid x_{1:T})
+\begin{aligned}
+z_t &\sim p(z_t \mid z_{t-1}) \quad &\text{(state transition)} \\
+x_t &\sim p(x_t \mid z_t) \quad &\text{(observation emission)}
+\end{aligned}
 \]
-However, this distribution is **analytically intractable** because the relationships are nonlinear and noisy.
 
-We therefore need an **efficient approximation** → this is the role of **Structured Inference Networks (SINs)**.
+We only observe \( x_{1:T} \), but we want to infer the hidden sequence \( z_{1:T} \).  
+Exact inference is intractable — hence the need for a **Structured Inference Network**.
 
+---
 
-## Structured Inference Networks (SIN)
+### Structured Inference Network (SIN)
 
-A **Structured Inference Network** is a neural network trained to approximate:
+Instead of approximating each latent variable independently as \( q(z_t \mid x_t) \),  
+the SIN learns a **structured posterior** that accounts for temporal dependencies:
+
 \[
 q(z_t \mid z_{t-1}, x_{1:T})
 \]
-In other words: *“What is the latent state at time t, given the previous state and all past and future observations?”*
 
-Unlike a simple model \( q(z_t \mid x_t) \),  
-the SIN:
-- looks at the **past** to understand system dynamics,  
-- looks at the **future** to refine its interpretation of the present.
+It uses a **bidirectional RNN** that reads the sequence both forward and backward in time  
+to leverage **past and future context** for better inference.
 
-It is a **bidirectional RNN**, which reads the sequence:
-- forward in time (past → future),  
-- and backward in time (future → past),  
-then combines both representations.
+---
 
+### Deep Markov Model (DMM)
 
-## Deep Markov Model (DMM)
+The Deep Markov Model is a nonlinear, neural version of the state-space model:
 
-The **Deep Markov Model (DMM)** is a *nonlinear and deep* version of the classic state-space model.
-
-Formally:
 \[
 \begin{cases}
-z_t \sim \mathcal{N}(G_{\alpha}(z_{t-1}), S_{\beta}(z_{t-1})) & \text{(Transition)} \\
-x_t \sim p(x_t \mid F_{\kappa}(z_t)) & \text{(Emission)}
+z_t \sim \mathcal{N}(G_\alpha(z_{t-1}), S_\beta(z_{t-1})) & \text{Transition network} \\
+x_t \sim p(x_t \mid F_\kappa(z_t)) & \text{Emission network}
 \end{cases}
 \]
 
-where \( G_\alpha, S_\beta, F_\kappa \) are neural networks (MLPs).  
-The DMM learns:
-- **how hidden states evolve** (Transition),  
-- **how they generate observations** (Emission),  
-- **and how to infer them** from data (Combiner).
+It consists of:
+- a **Transition** network (evolves hidden state),
+- an **Emission** network (generates observations),
+- a **Combiner** network (approximates posterior),
+- and a **RNN encoder** (encodes the sequence structure).
+
+The training objective maximizes the **Evidence Lower Bound (ELBO):**
+
+\[
+\log p_\theta(x) \geq \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - KL(q_\phi(z|x) \| p_\theta(z))
+\]
+
+---
+
+## Implementation 
+
+**Main modules:**
+- `Transition`: gated transition dynamics \( p(z_t | z_{t-1}) \)  
+- `Emission`: reconstructs \( x_t \) from \( z_t \)  
+- `Combiner`: approximates \( q(z_t | z_{t-1}, x_{1:T}) \)  
+- `RNN`: encoder producing hidden summaries of observations  
+
+**Training objective:**  
+\[
+\mathcal{L} = \text{NLL} + \beta \cdot KL
+\]
+
+where NLL = negative log-likelihood, KL = regularization,  
+and β is an annealing factor for stability.
+
+---
+
+## Dataset: Nottingham Polyphonic Music
+
+**Nottingham** dataset of polyphonic MIDI sequences.
+
+### Data preparation
+Convert `.mat` files to `.pkl` once:
+```bash
+python convert.py --input ./data/nottingham.mat --output ./data/nottingham.pkl
